@@ -1,33 +1,36 @@
-import os
-import time
+from be.constants import BEConfigFilename
+from be.constants import DefaultLocalBEConfig
+from be.constants import IgnoreDirNames
+from be.constants import IgnoreFileNames
+from be.util import DrawLine
+from be.util import draw_line
+from be.util import GetLogger
 from os.path import join, normpath
 import json
-
-start_time = time.time()
-
-BEConfigFilename = 'config.be'
-
-IgnoreDirNames  = 'IgnoreDirNames'
-IgnoreFileNames = 'IgnoreFileNames'
+import os
 
 
-DefaultLocalBEConfig = {IgnoreFileNames: [BEConfigFilename]}
+logger = GetLogger(__name__)
 
 
 def LoadLocalBEConfig(CurrentPath):
     LocalBEConfigFile = normpath(join(CurrentPath, BEConfigFilename))
     if not os.path.isfile(LocalBEConfigFile):
-        print 'ERROR: %s not present' % LocalBEConfigFile
+        msg = 'Attempting to load the local configuration ' \
+              '[%s] from %s; But the %s file is not present!' % \
+              (BEConfigFilename, CurrentPath, LocalBEConfigFile)
+        logging.error(msg)
         return {}
     with open(LocalBEConfigFile, 'rb') as f:
         LocalBEConfig = json.load(f)
-    print '%s contains the following config: \n %s' % \
+    msg = '%s contains:\n\t%s' % \
           (BEConfigFilename, LocalBEConfig)
+    logger.debug(msg)
     return LocalBEConfig
 
 
-def GetCompileFiles(LocalBEConfig, LocalFiles):
-
+def GetCompileFiles(CurrentPath, LocalBEConfig, LocalFiles):
+    CompileFiles = []
     if LocalBEConfig != DefaultLocalBEConfig:
         # Check whether there is any configurations 
         # to ignore any files in the current path, 
@@ -36,59 +39,86 @@ def GetCompileFiles(LocalBEConfig, LocalFiles):
            LocalBEConfig[IgnoreFileNames]:
             for localfile in LocalBEConfig[IgnoreFileNames]:
                 try:
-                    print 'INFO: ignoring %s' % localfile
+                    logger.debug('Ignoring %s' % localfile)
                     LocalFiles.remove(localfile)
                 except Exception, e:
-                    print 'ERROR: %s not found; Reason [%s]' % (localfile, e)
-
-    # Ignore all files that are not 
-    # Python files (.py)
-    NonPythonFiles = [f for f in LocalFiles if not f.endswith('.py')]
+                    msg = '%s does not exist; Please fix \"%s\" ' \
+                          'in %s; Reason [%s]' % (localfile, 
+                          IgnoreFileNames, BEConfigFilename, e)
+                    logger.warning(msg)
+    #
+    # Ignore all files that are not Python files (.py)
+    NonPythonFiles = \
+        [f for f in LocalFiles if not f.endswith('.py')]
     if NonPythonFiles:
-        for NonPythonFile in NonPythonFiles:
-            print 'INFO: %s is not a Python file; Ignoring it!' % NonPythonFile
-        
+        msg = 'Ignoring [%s] as they are not Python files!' % \
+              ', '.join(NonPythonFiles)
+        logger.info(msg)
+    #
+    # Get all the Python files and convert them to 
+    # fullpath; And, later return them!
     PythonFiles = [f for f in LocalFiles if f.endswith('.py')]
-
-    return PythonFiles
+    if PythonFiles:
+        for PythonFile in PythonFiles:
+            CompileFiles.append(normpath(join(CurrentPath, PythonFile)))
+    return CompileFiles
                 
 
 def DoCompile(LocalCompileFiles):
-    for filename in LocalCompileFiles:
-        print 'COMPILE: compiling %s' % filename
-    return None
+    import compileall
+    for CompileFile in LocalCompileFiles:
+        logger.debug('compiling %s' % CompileFile)
+        try:
+            compileall.compile_file(CompileFile, 
+                                    ddir='home/sangeeth/riptideio/be/target/',
+                                    force=True, 
+                                    quiet=True)
+        except Exception, e:
+            msg = 'Compilation aborted; Please ' \
+                  'fix this issue and try again; ' \
+                  'Reason[%s]' % e
+            logger.error(msg)
+            print msg
+            return False
+    return True
 
 
 def GetIgnoreDirNames(CurrentPath, LocalBEConfig):
-    
     LocalDirNames = []
-    
     if IgnoreDirNames in LocalBEConfig and \
        LocalBEConfig[IgnoreDirNames]:
         for dirname in LocalBEConfig[IgnoreDirNames]:
             LocalDirNames.append(normpath(join(CurrentPath, dirname)))
-
-    print 'INFO: the following local dir names are to be ignored : %s' % LocalDirNames
+    msg = 'The following directory names will ' \
+          'be ignored : %s' % LocalDirNames
+    logger.info(msg)
     return LocalDirNames
 
 
 
-def TraverseAndCompile(root):
+def TraverseAndCompile(RootDir):
+    
+    if not os.path.isdir(RootDir):
+        msg = '%s is not a valid directory; Please ' \
+              'check your configuration' % (RootDir)
+        logger.critical(msg)
+        return False
 
-    if not os.path.isdir(root):
-        print "%s does not seem to be a valid directory; Please check.." % root
-        return None
-
+    # The list of directories that should be ignored
     GlobalIgnoreDirNames = []
-    for CurrentPath, LocalDirs, LocalFiles in os.walk(root):
+
+    for CurrentPath, LocalDirs, LocalFiles in os.walk(RootDir):
 
         if CurrentPath in GlobalIgnoreDirNames:
-            print 'INFO: IGNORE: %s is configured to be ignored; doing so.. ' % CurrentPath
+            msg = 'As per the user config, %s is ' \
+                  'being ignored!' % (CurrentPath)
+            logger.info(msg)
+            #DrawLine()
             continue
 
-        print "CurrentPath  : ", CurrentPath
-        print "LocalDirs    : ", LocalDirs
-        print "LocalFiles   : ", LocalFiles
+        logger.debug("CurrentPath  : %s" % CurrentPath)
+        logger.debug("LocalDirs    : %s" % LocalDirs)
+        logger.debug("LocalFiles   : %s" % LocalFiles)
 
         # Initialize the local config file
         # with the default config setting 
@@ -101,8 +131,11 @@ def TraverseAndCompile(root):
         # TODO TODO TODO
         # Do 'make' here for the .c files
     
-        LocalCompileFiles = GetCompileFiles(LocalBEConfig, LocalFiles)
-        DoCompile(LocalCompileFiles)
+        LocalCompileFiles = GetCompileFiles(CurrentPath, 
+                                            LocalBEConfig, 
+                                            LocalFiles)
+        if not DoCompile(LocalCompileFiles):
+            return False
 
         # Get the local dir names that has to ignored
         LocalIgnoreDirNames = GetIgnoreDirNames(CurrentPath, LocalBEConfig)
@@ -112,13 +145,17 @@ def TraverseAndCompile(root):
         for dirname in LocalIgnoreDirNames:
             GlobalIgnoreDirNames.append(dirname)
 
-        print '----------------------------------'
+        #DrawLine()
+        #logger.debug('-' * 50)
+        logger.debug(draw_line())
+
+    return True
  
 
 
-TraverseAndCompile('/home/sangeeth/trials/build/dir1')
+#TraverseAndCompile('/home/sangeeth/trials/build/dir1')
+#TraverseAndCompile('/home/sangeeth/riptideio/be/brightedge')
+TraverseAndCompile('/home/sangeeth/trials/be/dir1')
 
 
-print 'Total time taken = ', time.time() - start_time, "seconds"
-
-
+# __END__
