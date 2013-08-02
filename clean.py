@@ -1,8 +1,8 @@
-import fnmatch
-import os
+from be.exception import CleanFailed
 from be.util import GetLogger
 from datetime import datetime
-from be.exception import CleanFailed
+import fnmatch
+import os
 
 logger = GetLogger(__name__)
 

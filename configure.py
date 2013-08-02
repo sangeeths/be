@@ -6,17 +6,15 @@ from be.constants import Tag
 from be.constants import Verbose
 from be.constants import Virtualenv
 
+from be.exception import ConfigureFailed
+
+from be.util import GetLogger
+
 from be.validation import GetAbsPath
 from be.validation import GetEmails
 from be.validation import GetPackages
 from be.validation import ValidTag
 from be.validation import ValidVirtualEnvReqFile
-
-from be.cparams import CParams    
-
-from be.exception import ConfigureFailed
-
-from be.util import GetLogger
 
 from datetime import datetime
 
@@ -55,6 +53,7 @@ def DoConfigure(args):
 
 
 def ConfigureSummary():
+    from be.cparams import CParams    
 
     cfg_s  = '\n'
     cfg_s += 'The build system has been configured for ' \

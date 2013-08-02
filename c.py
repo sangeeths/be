@@ -1,13 +1,12 @@
 #!/usr/bin/python
 
-from be.default import BEProjectRootDirectory
+from be.configure import GetUserConfig
 from be.constants import BEPackageType
+
 from be.util import GetLogger
 
 import argparse
 import os
-
-from be.configure import GetUserConfig
 
 
 logger = GetLogger(__name__)
@@ -107,18 +106,19 @@ if args.target == 'clean':
     from be.clean import DoClean
     DoClean()
 
-#if args.target == 'cleanall':
-#    from be.cleanall import DoCleanAll
-#    DoCleanAll()
+if args.target == 'cleanall':
+    from be.cleanall import DoCleanAll
+    DoCleanAll()
 
 if args.target == 'configure':
     from be.configure import DoConfigure
     UserConfig = GetUserConfig(args)
     DoConfigure(UserConfig)
 
-#if args.target == 'dev':
-#    DoCompile()
-#
+if args.target == 'dev':
+    from be.compile import DoCompile
+    DoCompile()
+
 #if args.target == 'test':
 #    DoCompile()
 #    DoTest()

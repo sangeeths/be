@@ -1,25 +1,28 @@
 from be.constants import BEConfigFilename
-from be.constants import DefaultLocalBEConfig
-from be.constants import IgnoreDirNames
-from be.constants import IgnoreFileNames
-from be.util import DrawLine
-from be.util import draw_line
 from be.util import GetLogger
-from os.path import join, normpath
+from be.util import draw_line
+
+from os import getcwd
+from os import walk
+from os.path import isdir
+from os.path import isfile
+from os.path import join
+from os.path import normpath
+
 import json
-import os
 
+from datetime import datetime
 
-logger = GetLogger(__name__)
+logger = None
 
 
 def LoadLocalBEConfig(CurrentPath):
     LocalBEConfigFile = normpath(join(CurrentPath, BEConfigFilename))
-    if not os.path.isfile(LocalBEConfigFile):
+    if not isfile(LocalBEConfigFile):
         msg = 'Attempting to load the local configuration ' \
               '[%s] from %s; But the %s file is not present!' % \
               (BEConfigFilename, CurrentPath, LocalBEConfigFile)
-        logging.error(msg)
+        logger.error(msg)
         return {}
     with open(LocalBEConfigFile, 'rb') as f:
         LocalBEConfig = json.load(f)
@@ -30,6 +33,8 @@ def LoadLocalBEConfig(CurrentPath):
 
 
 def GetCompileFiles(CurrentPath, LocalBEConfig, LocalFiles):
+    from be.constants import DefaultLocalBEConfig
+    from be.constants import IgnoreFileNames
     CompileFiles = []
     if LocalBEConfig != DefaultLocalBEConfig:
         # Check whether there is any configurations 
@@ -64,13 +69,12 @@ def GetCompileFiles(CurrentPath, LocalBEConfig, LocalFiles):
     return CompileFiles
                 
 
-def DoCompile(LocalCompileFiles):
+def CompileAll(LocalCompileFiles):
     import compileall
     for CompileFile in LocalCompileFiles:
         logger.debug('compiling %s' % CompileFile)
         try:
             compileall.compile_file(CompileFile, 
-                                    ddir='home/sangeeth/riptideio/be/target/',
                                     force=True, 
                                     quiet=True)
         except Exception, e:
@@ -78,12 +82,12 @@ def DoCompile(LocalCompileFiles):
                   'fix this issue and try again; ' \
                   'Reason[%s]' % e
             logger.error(msg)
-            print msg
             return False
     return True
 
 
 def GetIgnoreDirNames(CurrentPath, LocalBEConfig):
+    from be.constants import IgnoreDirNames
     LocalDirNames = []
     if IgnoreDirNames in LocalBEConfig and \
        LocalBEConfig[IgnoreDirNames]:
@@ -97,8 +101,9 @@ def GetIgnoreDirNames(CurrentPath, LocalBEConfig):
 
 
 def TraverseAndCompile(RootDir):
-    
-    if not os.path.isdir(RootDir):
+    from be.constants import DefaultLocalBEConfig
+
+    if not isdir(RootDir):
         msg = '%s is not a valid directory; Please ' \
               'check your configuration' % (RootDir)
         logger.critical(msg)
@@ -107,7 +112,7 @@ def TraverseAndCompile(RootDir):
     # The list of directories that should be ignored
     GlobalIgnoreDirNames = []
 
-    for CurrentPath, LocalDirs, LocalFiles in os.walk(RootDir):
+    for CurrentPath, LocalDirs, LocalFiles in walk(RootDir):
 
         if CurrentPath in GlobalIgnoreDirNames:
             msg = 'As per the user config, %s is ' \
@@ -134,11 +139,12 @@ def TraverseAndCompile(RootDir):
         LocalCompileFiles = GetCompileFiles(CurrentPath, 
                                             LocalBEConfig, 
                                             LocalFiles)
-        if not DoCompile(LocalCompileFiles):
+        if not CompileAll(LocalCompileFiles):
             return False
 
         # Get the local dir names that has to ignored
-        LocalIgnoreDirNames = GetIgnoreDirNames(CurrentPath, LocalBEConfig)
+        LocalIgnoreDirNames = GetIgnoreDirNames(CurrentPath, 
+                                                LocalBEConfig)
 
         # Add the local dir names that has 
         # to be ignored to the global list
@@ -150,12 +156,35 @@ def TraverseAndCompile(RootDir):
         logger.debug(draw_line())
 
     return True
+
+
+def DoCompile():
+    from be.cparams import CParams
+    from be.constants import Directories
+    from be.constants import Verbose
+    import time
+    
+    global logger
+    
+    _verbose = True if CParams[Verbose] else False
+    logger = GetLogger(__name__, verbose=_verbose)
  
+    # Start time  
+    Start = time.clock()
 
+    if not CParams[Directories]:
+        TraverseAndCompile(getcwd())
+    else:
+        for CompileDir in CParams[Directories]:
+            TraverseAndCompile(CompileDir)
 
-#TraverseAndCompile('/home/sangeeth/trials/build/dir1')
-#TraverseAndCompile('/home/sangeeth/riptideio/be/brightedge')
-TraverseAndCompile('/home/sangeeth/trials/be/dir1')
+    # Stop time  
+    Stop = time.clock()
+
+    msg = 'Total Compilation Time = %s Seconds' % (Stop-Start)
+    print msg
+
+    return True
 
 
 # __END__
