@@ -7,13 +7,8 @@ from be.util import GetLogger
 import argparse
 import os
 
-from be.constants import BEProjectDefaultConfigFilename
+from be.configure import GetUserConfig
 
-from be.validation import GetAbsPath
-from be.validation import GetEmails
-from be.validation import GetPackages
-from be.validation import ValidTag
-from be.validation import ValidVirtualEnvReqFile
 
 logger = GetLogger(__name__)
 
@@ -108,98 +103,38 @@ args = parser.parse_args()
 
 
 
-
-
-
-
 if args.target == 'clean':
-    pass
-if args.target == 'cleanall':
-    pass
+    from be.clean import DoClean
+    DoClean()
+
+#if args.target == 'cleanall':
+#    from be.cleanall import DoCleanAll
+#    DoCleanAll()
 
 if args.target == 'configure':
-    from be.constants import Directories
-    from be.constants import Email
-    from be.constants import Package
-    from be.constants import Tag
-    from be.constants import Verbose
-    from be.constants import Virtualenv
-    from be.dparams import DParams
     from be.configure import DoConfigure
+    UserConfig = GetUserConfig(args)
+    DoConfigure(UserConfig)
 
-    logger.debug('The following are the default parameters')
-    logger.debug(DParams)
-
-    logger.debug('Preparing to read the configure parameters')
-    UserConfig = DParams
-
-    if args.dirs:
-        old = UserConfig[Directories]
-        UserConfig[Directories] = GetAbsPath(args.dirs)
-        msg = 'Updated Directories From %s To %s' % \
-              (old, UserConfig[Directories])
-        logger.debug(msg)
-
-    if args.email:
-        old = UserConfig[Email]
-        UserConfig[Email] = GetEmails(args.email)
-        msg = 'Updated Emails From %s To %s' % \
-              (old, UserConfig[Email])
-        logger.debug(msg)
-
-    if args.package:
-        old = UserConfig[Package]
-        UserConfig[Package] = GetPackages(args.package)
-        msg = 'Updated Packages From %s To %s' % \
-              (old, UserConfig[Package])
-        logger.debug(msg)
-
-    if args.tag:
-        old = UserConfig[Tag]
-        ValidTag(args.tag)
-        UserConfig[Tag] = args.tag
-        msg = 'Updated Tag From [%s] To [%s]' % \
-              (old, UserConfig[Tag])
-        logger.debug(msg)
-
-    if args.verbose:
-        old = UserConfig[Verbose]
-        UserConfig[Verbose] = args.verbose
-        msg = 'Updated Verbose From %s To %s' % \
-              (old, UserConfig[Verbose])
-        logger.debug(msg)
-
-    if args.virtualenv:
-        old = UserConfig[Virtualenv]
-        ValidVirtualEnvReqFile(args.virtualenv)
-        UserConfig[Virtualenv] = args.virtualenv
-        msg = 'Updated VirtualEnv Requirements From [%s] To [%s]' % \
-              (old, UserConfig[Virtualenv])
-        logger.debug(msg)
-
-    logger.debug(" final Configuration : ")
-    logger.debug(UserConfig)
-
-    #DoConfigure(UserConfig)
-
-
-
-if args.target == 'dev':
-    pass
-if args.target == 'test':
-    pass
-if args.target == 'releaese':
-    pass
-if args.target == 'preleaese':
-    pass
-
+#if args.target == 'dev':
+#    DoCompile()
+#
+#if args.target == 'test':
+#    DoCompile()
+#    DoTest()
+#
+#if args.target == 'releaese' or \
+#   args.target == 'prelease':
+#    DoCompile()
+#    DoTest()
+#    DoVersion()
+#    DoChangeLog()
+#    DoUpload()
+#    DoEmail()
 
 
 
 print args
 
-## parse some argument lists
-#parser.parse_args(['a', '12'])
-#parser.parse_args(['--foo', 'b', '--baz', 'Z'])
 
-
+# __END__
