@@ -2,12 +2,18 @@
 
 from be.default import BEProjectRootDirectory
 from be.constants import BEPackageType
-from be.validation import ValidConfigureArguments
 from be.util import GetLogger
 
 import argparse
 import os
 
+from be.constants import BEProjectDefaultConfigFilename
+
+from be.validation import GetAbsPath
+from be.validation import GetEmails
+from be.validation import GetPackages
+from be.validation import ValidTag
+from be.validation import ValidVirtualEnvReqFile
 
 logger = GetLogger(__name__)
 
@@ -44,8 +50,8 @@ help_email      = 'enter an email address to which the build report ' \
                   'should be sent.'
 help_verbose    = 'the build logs will be printed in the stdout ' \
                   '[default = False]'
-#help_logfile    = 'where do you want the build logs to go? ' \
-#                  '[default = /a/b/c/d]'
+help_venv       = 'do you want this build to be performed in a ' \
+                  'virtual environment? [default = False]'
 #
 #
 # End - help strings
@@ -70,18 +76,19 @@ parser_cleanall = subparsers.add_parser('cleanall', help=help_cleanall)
 parser_configure = subparsers.add_parser('configure', help=help_configure)
 
 # Arguments for sub-command 'configure'
-parser_configure.add_argument('-d', '--dirs',    help=help_dirs, 
-                                                 nargs='+')
-parser_configure.add_argument('-p', '--package', help=help_package, 
-                                                 nargs='+', 
-                                                 choices=list(BEPackageType._keys))
-parser_configure.add_argument('-t', '--tag',     help=help_tag)
-parser_configure.add_argument('-e', '--email',   help=help_email,
-                                                 nargs='+')
-parser_configure.add_argument('-v', '--verbose', help=help_verbose, 
-                                                 action='store_true', 
-                                                 default=False)
-#parser_configure.add_argument('-l', '--logfile', help=help_logfile) 
+parser_configure.add_argument('-d', '--dirs',       help=help_dirs, 
+                                                    nargs='+')
+parser_configure.add_argument('-p', '--package',    help=help_package, 
+                                                    nargs='+', 
+                                                    choices=list(BEPackageType._keys))
+parser_configure.add_argument('-t', '--tag',        help=help_tag)
+parser_configure.add_argument('-e', '--email',      help=help_email,
+                                                    nargs='+')
+parser_configure.add_argument('-v', '--verbose',    help=help_verbose, 
+                                                    action='store_true', 
+                                                    default=False)
+parser_configure.add_argument('-V', '--virtualenv', help=help_venv, 
+                                                    metavar='REQUIREMENTS')
 
 # Sub-parser for sub-command 'dev'
 parser_dev = subparsers.add_parser('dev', help=help_dev)
@@ -101,20 +108,80 @@ args = parser.parse_args()
 
 
 
+
+
+
+
 if args.target == 'clean':
     pass
 if args.target == 'cleanall':
     pass
 
 if args.target == 'configure':
-    if not ValidConfigureArguments(args):
-        msg = 'Invalid arguments for \"configure\" target. ' \
-              'Please check your options.'
-        logger.error(msg)
-        exit(1)
-    #DoConfigure(args)
-    
-    
+    from be.constants import Directories
+    from be.constants import Email
+    from be.constants import Package
+    from be.constants import Tag
+    from be.constants import Verbose
+    from be.constants import Virtualenv
+    from be.dparams import DParams
+    from be.configure import DoConfigure
+
+    logger.debug('The following are the default parameters')
+    logger.debug(DParams)
+
+    logger.debug('Preparing to read the configure parameters')
+    UserConfig = DParams
+
+    if args.dirs:
+        old = UserConfig[Directories]
+        UserConfig[Directories] = GetAbsPath(args.dirs)
+        msg = 'Updated Directories From %s To %s' % \
+              (old, UserConfig[Directories])
+        logger.debug(msg)
+
+    if args.email:
+        old = UserConfig[Email]
+        UserConfig[Email] = GetEmails(args.email)
+        msg = 'Updated Emails From %s To %s' % \
+              (old, UserConfig[Email])
+        logger.debug(msg)
+
+    if args.package:
+        old = UserConfig[Package]
+        UserConfig[Package] = GetPackages(args.package)
+        msg = 'Updated Packages From %s To %s' % \
+              (old, UserConfig[Package])
+        logger.debug(msg)
+
+    if args.tag:
+        old = UserConfig[Tag]
+        ValidTag(args.tag)
+        UserConfig[Tag] = args.tag
+        msg = 'Updated Tag From [%s] To [%s]' % \
+              (old, UserConfig[Tag])
+        logger.debug(msg)
+
+    if args.verbose:
+        old = UserConfig[Verbose]
+        UserConfig[Verbose] = args.verbose
+        msg = 'Updated Verbose From %s To %s' % \
+              (old, UserConfig[Verbose])
+        logger.debug(msg)
+
+    if args.virtualenv:
+        old = UserConfig[Virtualenv]
+        ValidVirtualEnvReqFile(args.virtualenv)
+        UserConfig[Virtualenv] = args.virtualenv
+        msg = 'Updated VirtualEnv Requirements From [%s] To [%s]' % \
+              (old, UserConfig[Virtualenv])
+        logger.debug(msg)
+
+    logger.debug(" final Configuration : ")
+    logger.debug(UserConfig)
+
+    #DoConfigure(UserConfig)
+
 
 
 if args.target == 'dev':

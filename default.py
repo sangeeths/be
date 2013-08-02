@@ -2,6 +2,21 @@ from os.path import join, normpath
 from be.constants import BEPackageType
 
 
+
+{
+    'BEProjectRootDirectory' : '/home/sangeeth/riptideio/be/brightedge',
+    'BECompileDirectories' : [],
+    'BEPackage' : 'tgz, rpm',
+    'BEEmail' : [],
+    'BETag' : '',
+    'BEVerbose': False,   
+    'BEVirtualEnv': False,
+    'BERequirements' : '/home/sangeeth/riptideio/be/brightedge/REQUIREMENTS'
+}
+    
+    
+
+
 # # # # # # # # # # # # # # # # # # # # # # # # #
 #
 # USER CONFIGURABLE PARAMETERS

@@ -2,7 +2,7 @@ from be.constants import BEPackageType
 
 from be.default import BEProjectRootDirectory
 
-from be.exception import InvalidDirectory
+from be.exception import InvalidRootDirectory
 from be.exception import InvalidEmailID 
 from be.exception import InvalidPackage
 from be.exception import InvalidTag
@@ -15,28 +15,41 @@ import os
 logger = GetLogger(__name__)
 
 
-def ValidDirs(dirs):
-    parent = os.path.realpath(BEProjectRootDirectory)
-    for child in dirs:
-        if not os.path.isdir(child):
-            msg = 'Invalid directory; Cannot compile [%s] as it ' \
-                  'does not look like a directory. Please fix the ' \
-                  'argument(s) for \"--dirs\" option.' % child
-            logger.error(msg)
-            raise InvalidDirectory(msg)
-        child = os.path.realpath(child)
-        if not os.path.commonprefix([parent, child]) == parent:
-            msg = 'Invalid directory settings; Cannot compile ' \
-                  'directory [%s] because it is not inside the ' \
-                  'project root directory [%s]; Please fix the ' \
-                  'argument(s) for \"--dirs\" option.' % (child, parent)
-            logger.error(msg)
-            raise InvalidDirectory(msg)
+def ValidCompileDirectory(child):
+    from be.exception import InvalidCompileDirectory
+    from os import getcwd
+    from os.path import realpath, isdir, commonprefix
+    child  = realpath(child)
+    parent = getcwd()
+    if not isdir(child):
+        msg = 'Invalid directory; Cannot compile [%s] as it ' \
+              'does not look like a directory. Please fix the ' \
+              'argument(s) for \"--dirs\" option.' % child
+        logger.error(msg)
+        raise InvalidCompileDirectory(msg)
+    if not commonprefix([parent, child]) == parent:
+        msg = 'Invalid directory settings; Cannot compile ' \
+              'directory [%s] because it is not inside the ' \
+              'project root directory [%s]; Please fix the ' \
+              'argument(s) for \"--dirs\" option.' % (child, parent)
+        logger.error(msg)
+        raise InvalidCompileDirectory(msg)
     return True
+
+
+def GetAbsPath(dirs):
+    from os.path import realpath
+    AbsPath = []
+    for path in dirs:
+        ValidCompileDirectory(path)
+        AbsPath.append(realpath(path))
+    return AbsPath
+           
+
     
 
-def ValidEmail(emails):
-    valid_email_ids = [
+def ValidEmail(email):
+    ValidEmailIds = [
         'all@riptideio.com',
         'andy@riptideio.com',
         'bhagavan@riptideio.com',
@@ -46,24 +59,39 @@ def ValidEmail(emails):
         'mogram@riptideio.com',
         'sangeeth@riptideio.com',
         'sleimbro@riptideio.com']
-    for email in emails:
-        if not email in valid_email_ids:
-            msg = 'Invalid Email Address [%s]; The valid options ' \
-                  'are one or more of %s' % (email, valid_email_ids)
-            logger.error(msg)
-            raise InvalidEmailID(msg)
+    if not email in ValidEmailIds:
+        msg = 'Invalid Email Address [%s]; The valid options ' \
+              'are one or more of %s' % (email, ValidEmailIds)
+        logger.error(msg)
+        raise InvalidEmailID(msg)
     return True
 
 
-def ValidPackage(package):
-    for p in package:
-        if p not in BEPackageType._keys:
-            msg = 'Invalid package type [%s]; The valid ' \
-                  'options are one or more of [%s]' % \
-                  (p, ', '.join(BEPackageType._keys))
-            logger.error(msg)
-            raise InvalidPackage(msg)
+def GetEmails(emails):
+    Emails = []
+    for e in emails:
+        if ValidEmail(e): Emails.append(e)
+    return Emails
+
+
+def PackageEnum(s):
+    from be.constants import BEPackageType
+    from be.util import StringToEnum
+    try:
+        return StringToEnum(BEPackageType, s)
+    except Exception, e:
+        msg = 'Invalid package type [%s]; The valid ' \
+              'options are one or more of [%s]' % \
+              (s, ', '.join(BEPackageType._keys))
+        raise InvalidPackage(msg)
     return True
+
+
+def GetPackages(packages):
+    Packages = []
+    for p in packages:
+        Packages.append(PackageEnum(p))
+    return Packages
 
 
 def ValidTag(tag):
@@ -99,15 +127,14 @@ def ValidTag(tag):
     raise InvalidTag(msg)
 
 
-def ValidConfigureArguments(args):
-    if args.dirs:
-        ValidDirs(args.dirs)
-    if args.email:
-        ValidEmail(args.email)
-    if args.package:
-        ValidPackage(args.package)
-    if args.tag:
-        ValidTag(args.tag)
+def ValidVirtualEnvReqFile(ReqFile):
+    from os.path import realpath, isfile
+    ReqFile = realpath(ReqFile)
+    if not isfile(ReqFile):
+        msg = 'Invalid Requirement File for VirtualEnv [%s]; ' \
+              'Please update your option for \"--virtualenv\" '\
+              'in \"be configure\" command.' % (ReqFile)
+        raise InvalidVirtualEnvReqFile(msg)
     return True
 
 

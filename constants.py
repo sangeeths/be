@@ -1,5 +1,4 @@
 from enum import Enum
-import logging
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -14,26 +13,31 @@ import logging
 BEPackageType = Enum('tgz', 'rpm')
 #
 #
-# The current log level
-BELogLevel = logging.DEBUG
-#
-#
-# The current log format
-#BELogFormat = '[%(asctime)s] [%(levelname)-s] ' \
-#              '[%(name)s] %(message)s'
-BELogFormat = '%(asctime)22s %(levelname)8s  ' \
-              '%(name)-12s  $  %(message)s'
-#
-#
 # The log file name for each and every directory 
 # in the build root 
-BEConfigFilename = 'config.be'
+BEConfigFilename               = 'config.be'
+BEProjectDefaultConfigFilename = 'default.config.be'
+BEProjectConfigureFilename     = 'configure.be'
 #
 #
 # Keys used in the config.be
 IgnoreDirNames  = 'IgnoreDirNames'
 IgnoreFileNames = 'IgnoreFileNames'
 #
+#
+# The following are the parameters that would be
+# present in 
+#   -> 'default.config.be'
+#   -> 'configure.be'
+#
+
+Directories  = 'Directories'
+Email        = 'Email'
+Package      = 'Package'
+Tag          = 'Tag'
+Verbose      = 'Verbose'
+Virtualenv   = 'Virtualenv'
+
 #
 # When there is no 'BEConfigFilename' in a pwd,
 # the following will be considered as a default
