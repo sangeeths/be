@@ -6,7 +6,7 @@ from be.exception import TargetConfigureFailed
 
 from be.util import GetLogger
 from be.util import GetLogger
-from be.util import draw_line
+from be.util import DrawLine
 
 from be.validation import valid_BEConfig
 from be.validation import valid_CompileDirectory
@@ -61,7 +61,7 @@ class BuildEngine:
         valid_BEConfig(config)
         for k, v in config.iteritems():
             setattr(self, '_%s' % k, v)
-        self._update_dir_abspath()
+        self._update_dir_abspath() 
         return None
         
     def _update_dir_abspath(self):
@@ -73,13 +73,12 @@ class BuildEngine:
         return None
 
     def _update_cparams(self, args):
-        print args
-        self._config_dirs       = args.dirs
-        self._config_email      = args.email
-        self._config_package    = args.package
-        self._config_tag        = args.tag
+        self._config_dirs       = args.dirs if args.dirs is not None else []
+        self._config_email      = args.email if args.email is not None else []
+        self._config_package    = args.package if args.package is not None else []
+        self._config_tag        = args.tag if args.tag is not None else ''
         self._config_verbose    = args.verbose
-        self._config_virtualenv = args.virtualenv
+        self._config_virtualenv = args.virtualenv if args.virtualenv is not None else ''
         return None
 
     def _update_logger(self):
@@ -88,6 +87,8 @@ class BuildEngine:
             logger = GetLogger(__name__, verbose=True)
             logger.debug('Verbose settings updated!')
         return None
+
+    # # # # # # # # # # # # # #    C L E A N    # # # # # # # # # # # # # # 
 
     def _clean(self):
         CleanFiles = []
@@ -115,6 +116,8 @@ class BuildEngine:
         logger.info(self._summary)
         return True
 
+    # # # # # # # # # # # #    C L E A N - A L L   # # # # # # # # # # # #
+
     def _cleanall(self):
         # Firstly, call clean()
         self._op[Tclean]()
@@ -132,27 +135,30 @@ class BuildEngine:
         self._summary += msg
         return True
 
+    # # # # # # # # # # # #    C O N F I G U R E   # # # # # # # # # # # #
+
     def _get_user_config(self):
-        if self._config_dirs:
-            self._Directories = self._config_dirs
-            self._update_dir_abspath()
-            logger.debug('Updating Directories..')
-        if self._config_email:
-            self._Email = [valid_Email(e) for e in self._config_email]
-            logger.debug('Updating Emails..')
-        if self._config_package:
-            self._Package = [valid_Package(p) for p in self._config_package]
-            logger.debug('Updating Packages..')
-        if self._config_tag:
-            self._Tag = valid_Tag(self._config_tag)
-            logger.debug('Updating Tag..')
+        # Update Directories
+        self._Directories = self._config_dirs
+        self._update_dir_abspath()
+        logger.debug('Updating Directories..')
+        # Update Emails
+        self._Email = [valid_Email(e) for e in self._config_email]
+        logger.debug('Updating Emails..')
+        # Update Package
+        self._Package = [valid_Package(p) for p in self._config_package]
+        logger.debug('Updating Packages..')
+        # Update Tag
+        self._Tag = valid_Tag(self._config_tag)
+        logger.debug('Updating Tag..')
+        # Update Verbose
         if self._config_verbose is not None:
             self._Verbose = self._config_verbose
             logger.debug('Updating Verbose..')
-        if self._config_virtualenv:
-            if valid_VirtualEnvReqFile(self._config_virtualenv):
-                self._Virtualenv = self._config_virtualenv
-                logger.debug('Updating VirtualEnv..')
+        # Update Virtual Env
+        if valid_VirtualEnvReqFile(self._config_virtualenv):
+            self._Virtualenv = self._config_virtualenv
+            logger.debug('Updating VirtualEnv..')
 
     def _get_config_params(self):
         config = {
@@ -170,9 +176,9 @@ class BuildEngine:
         _s  = '\n'
         _s += 'The build system has been configured for ' \
                  'the following paramaters:\n'
-        _s += '      Directories = [%s]\n' % ', '.join(self._Directories)
-        _s += '      Email       = [%s]\n' % ', '.join(self._Email)
-        _s += '      Package     = [%s]\n' % ', '.join(self._Package)
+        _s += '      Directories = %s\n' % self._Directories
+        _s += '      Email       = %s\n' % self._Email
+        _s += '      Package     = %s\n' % self._Package
         _s += '      Tag         = [%s]\n' % self._Tag
         _s += '      Verbose     = [%s]\n' % self._Verbose
         _s += '      Virtualenv  = [%s]\n' % self._Virtualenv
@@ -208,6 +214,7 @@ class BuildEngine:
         self._update_configure_summary()
         return True
 
+    # # # # # # # # # # # # # #    D E V    # # # # # # # # # # # # # # #
 
     def _load_local_config(self, CurrentPath):
         LocalBEConfigFile = normpath(join(CurrentPath, BEConfigFilename))
@@ -309,7 +316,6 @@ class BuildEngine:
                 msg = 'As per the user config, %s is ' \
                       'being ignored!' % (CurrentPath)
                 logger.info(msg)
-                #DrawLine()
                 continue
             #
             logger.debug("CurrentPath  : %s" % CurrentPath)
@@ -340,7 +346,7 @@ class BuildEngine:
             # Add the local dir names that has
             # to be ignored to the global list
             self._update_dirs_ignored(CurrentPath, LocalBEConfig)
-            logger.debug(draw_line())
+            logger.debug(DrawLine())
             #
         return True
 
@@ -357,19 +363,41 @@ class BuildEngine:
         Stop = time.clock()
         #
         # Update the summary (reset)
-        self._summary  = '\nTotal Compilation Time = %s ' \
-                         'Seconds \n' % (Stop-Start)
+        _s  = '\n'
+        _s += 'Build Summary:\n'
+        _s += '--------------\n'
+        _s += 'Total Number of Files Compiled = %d\n' % len(self._files_compiled)
+        _s += 'Total Number of Files Ignored  = %d\n' % len(self._files_ignored)
+        _s += 'Total Number of Dirs Compiled  = %d\n' % len(self._dirs_compiled)
+        _s += 'Total Number of Dirs  Ignored  = %d\n' % len(self._dirs_ignored)
+        _s += '\nTotal Compilation Time = %s Seconds \n' % (Stop-Start)
+
+        self._summary = _s
         logger.info(self._summary)
         return None
 
+    # # # # # # # # # # # # # #    T E S T   # # # # # # # # # # # # # # #
 
-        pass
     def _test(self):
         pass
+
+    # # # # # # # # # # # #    R E A L E S E    # # # # # # # # # # # # # 
+
+
     def _release(self):
         pass
+
+    # # # # # # #    P R O D U C T I O N - R E A L E S E    # # # # # # #
+
     def _prelease(self):
         pass
+
+    
+    # # # # # # # # # # # # # #    T G Z    # # # # # # # # # # # # # # #
+    # # # # # # # # # # # # # #    R P M    # # # # # # # # # # # # # # #
+    # # # # # # # # # # # # #   E - M A I L   # # # # # # # # # # # # # #
+    # # # # # # # # # # # # #   M D 5 S U M   # # # # # # # # # # # # # #
+
 
     def run(self):
         op = self._op[self._target]

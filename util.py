@@ -35,7 +35,7 @@ def GetLogger(LoggerName, verbose=False):
     return logger
 
 
-def draw_line(style='-'):
+def DrawLine(style='-'):
 #    import os
 #    rows, columns = os.popen('stty size', 'r').read().split()
     return style * 50
@@ -92,14 +92,4 @@ def GetProjectConfigureParameters():
     return ProjectConfigureParameters
 
 
-def StringToEnum(eNum, strItem):
-    for element in eNum:
-        if element.key == strItem:
-            return element 
-    msg = 'Value [%s] not found in [%s]' % \
-          (strItem, eNum._keys)
-    raise ValueNotFound(msg)
-
-
-    
 

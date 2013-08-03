@@ -95,6 +95,9 @@ def valid_Tag(tag):
     from string import ascii_uppercase as upper
     from string import digits as digits
     
+    if tag == '':
+        return tag
+     
     _allowed = set(lower + digits + upper + '_' + '-')
     _min_len = 5
     _max_len = 50
@@ -125,6 +128,7 @@ def valid_Tag(tag):
 
 def valid_VirtualEnvReqFile(ReqFile):
     from os.path import realpath, isfile
+    if ReqFile == '': return True
     ReqFile = realpath(ReqFile)
     if not isfile(ReqFile):
         msg = 'Invalid Requirement File for VirtualEnv [%s]; ' \
