@@ -66,5 +66,11 @@ class GenerateMD5SumFailed(BEException):
     def __init__(self, value='Generating md5sum Failed'):
         self.value = value
 
+class UnableToIgnoreItem(BEException):
+    def __init__(self, value='Unable to Ignore'):
+        self.value = value
 
+class UnableToAddPackageFiles(BEException):
+    def __init__(self, value='Unable to Add Files to Package'):
+        self.value = value
 

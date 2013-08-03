@@ -23,6 +23,7 @@ def GetLogger(LoggerName, verbose=False):
         stream_handler.setLevel(BELogLevel)
         stream_handler.setFormatter(formatter)
         logger.addHandler(stream_handler)
+        return logger
 
     # Create a file handler; Set a loglevel; 
     # Set a formatter; Add the file handler

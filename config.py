@@ -62,7 +62,11 @@ BEBaseFileName = 'BrightEdge'
 #
 #
 # Target Root
-BETargetRoot = '/usr/lib/be/'
+BETargetRoot = normpath(join('/usr/lib/', BEBaseFileName.lower()))
+#
+#
+# RPM Related Variables
+BERPMBuildDir = normpath(join(BETargetRoot, 'rpmbuild'))
 #
 # End - User Configurable Parameters
 # 

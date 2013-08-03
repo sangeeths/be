@@ -31,6 +31,7 @@ BEProjectConfigureFilename     = 'configure.be'
 #
 #
 # Keys used in the config.be
+IgnoreItems = "IgnoreItems"
 IgnoreDirNames  = 'IgnoreDirNames'
 IgnoreFileNames = 'IgnoreFileNames'
 Dependency      = 'Dependency'
@@ -70,7 +71,7 @@ ConfigMandatoryParams = [
 # local config file. The default config file is 
 # configured to only ignore 'BEConfigFilename'.
 # Read-Only
-DefaultLocalBEConfig = {IgnoreFileNames: [BEConfigFilename]}
+DefaultLocalBEConfig = {IgnoreItems: [BEConfigFilename]}
 #
 #
 # End - System Parameters

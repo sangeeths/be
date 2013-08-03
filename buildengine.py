@@ -6,6 +6,8 @@ from be.exception import TargetCleanFailed
 from be.exception import TargetConfigureFailed
 from be.exception import GenerateTgzFailed
 from be.exception import GenerateMD5SumFailed
+from be.exception import UnableToAddPackageFiles
+from be.exception import UnableToIgnoreItem
 
 from be.util import GetLogger
 from be.util import GetLogger
@@ -28,6 +30,7 @@ from os.path import isdir
 from os.path import realpath
 from os.path import basename
 
+import re
 import fnmatch
 import time
 import json
@@ -141,6 +144,17 @@ class BuildEngine:
             return True
         return False
     
+    def _get_package_files(self, rootdir):
+        # This list contains all the files that should be tar'ed
+        _pkg_files = []
+        for CurrentPath, LocalDirs, LocalFiles in walk(rootdir):
+            for name in LocalFiles:
+                f = normpath(join(CurrentPath, name))
+                if f.endswith('.pyc'):
+                    _pkg_files.append(f)
+                if f in self._add_to_pkg:
+                    _pkg_files.append(f)
+        return _pkg_files
 
     # # # # # # # # # # # # # #    C L E A N    # # # # # # # # # # # # # # 
 
@@ -164,17 +178,17 @@ class BuildEngine:
         if CleanFiles:
             self._summary += 'The following files have been removed:\n'
             self._summary += '\t%s' % ('\n\t'.join(CleanFiles))
-            self._summary += '\n'
-        self._summary += '\nClean Time = %s Seconds\n' % (Stop-Start)
-        self._summary += 'Total .pyc Files Removed = %d\n' % len(CleanFiles)
-        logger.info(self._summary)
+            self._summary += '\n\n'
+        self._summary += 'Total Number of .pyc Files Removed = %d\n' % len(CleanFiles)
+        self._summary += 'Clean Time = %s Seconds\n' % (Stop-Start)
+        #logger.info(self._summary)
         return True
 
     # # # # # # # # # # # #    C L E A N - A L L   # # # # # # # # # # # #
 
     def _cleanall(self):
         # Firstly, call clean()
-        self._op[Tclean]()
+        self._target_op[Tclean]()
         # Secondly, remove the configure information
         if isfile(BEProjectConfigureFilename):
             msg = 'Removing the configuring information [%s]' % \
@@ -184,7 +198,7 @@ class BuildEngine:
         msg = '\nNOTE: Configure parameters has been removed; ' \
               'Please run \"be configure\" with sutiable ' \
               'parameters before attempting to build.\n'
-        logger.info(msg)
+        #logger.info(msg)
         # Update the summary (append)
         self._summary += msg
         return True
@@ -243,7 +257,7 @@ class BuildEngine:
         _s += '      -> prelease\n'
         _s += 'Goodluck with the build! ;) \n'
         self._summary = _s
-        logger.info(self._summary)
+        #logger.info(self._summary)
         return None
         
     def _configure(self):
@@ -261,6 +275,9 @@ class BuildEngine:
             with open(BEProjectConfigureFilename, 'wb') as f:
                 json.dump(self._get_config_params(), f, 
                           indent=4, sort_keys=True)
+            msg = 'Updating configure parameters : ' \
+                  '%s' % self._get_config_params()
+            logger.debug(msg)
         except Exception, e:
             msg = 'Unable to configure the build parameters; ' \
                   'Reason [%s]' % e
@@ -280,8 +297,7 @@ class BuildEngine:
             return {}
         with open(LocalBEConfigFile, 'rb') as f:
             LocalBEConfig = json.load(f)
-        msg = '%s contains:\n\t%s' % \
-              (BEConfigFilename, LocalBEConfig)
+        msg = '%s contains: %s' % (BEConfigFilename, LocalBEConfig)
         logger.debug(msg)
         return LocalBEConfig
 
@@ -300,41 +316,93 @@ class BuildEngine:
                     logger.error(msg)
         return True
     
-    def _add_to_package(self, CurrentPath, LocalBEConfig):
-        if LocalBEConfig == DefaultLocalBEConfig:
-            return None
-        if AddToPackage in LocalBEConfig and \
-           LocalBEConfig[AddToPackage]:
-            for f in LocalBEConfig[AddToPackage]:
-                _f = normpath(join(CurrentPath, f))
+    def _add_dir_to_package(self, dirname):
+        if not isdir(dirname):
+            return False
+        for path, dirs, files in walk(dirname):
+            for f in files:
+                logger.debug('Adding [D] File: %s' % f)
+                _f = normpath(join(path, f))
                 self._add_to_pkg.append(_f)
         return True
 
-    def _update_files_ignored(self, CurrentPath, LocalBEConfig, LocalFiles):
-        if LocalBEConfig != DefaultLocalBEConfig:
-            # Check whether there is any configurations
-            # to ignore any files in the current path,
-            # if so ignore them!
-            if IgnoreFileNames in LocalBEConfig and \
-               LocalBEConfig[IgnoreFileNames]:
-                for f in LocalBEConfig[IgnoreFileNames]:
-                    try:
-                        logger.debug('Ignoring %s' % f)
-                        LocalFiles.remove(f)
-                        #
-                        # Update the self._files_ignored for statistics
-                        _abspath = normpath(join(CurrentPath, f))
-                        self._files_ignored.append(_abspath)
-                    except Exception, e:
-                        msg = '%s does not exist; Please fix \"%s\" ' \
-                              'in %s; Reason [%s]' % (f, IgnoreFileNames, 
-                              BEConfigFilename, e)
-                        logger.error(msg)
+    def _add_to_package(self, CurrentPath, LocalBEConfig, 
+                        LocalDirs, LocalFiles):
+        # If there is no "AddToPackage" in LocalBEConfig
+        # or if LocalBEConfig[AddToPackage] is empty, then
+        # there is nothing to add.. so just leave right now!
+        if AddToPackage not in LocalBEConfig:
+            return None
+        if not LocalBEConfig[AddToPackage]:
+            return None
+        # Now, for all the files and directories present 
+        # in "AddToPackage", add them to self._add_to_pkg
+        for f in LocalBEConfig[AddToPackage]:
+            try:
+                regex = re.compile(f)
+                AddFiles = [x for x in LocalFiles if regex.search(x)]
+                for f in AddFiles:
+                    logger.debug('Adding File: %s' % f)
+                    _f = normpath(join(CurrentPath, f))
+                    self._add_to_pkg.append(_f)
+                AddDirs = [x for x in LocalDirs if regex.search(x)]
+                for d in AddDirs:
+                    logger.debug('Adding Directory: %s' % d)
+                    _d = normpath(join(CurrentPath, d))
+                    self._add_dir_to_package(_d)
+            except Exception, e:
+                msg = 'Unable to add %s to the Package; Please fix \"%s\" ' \
+                      'in %s; Reason [%s]' % (f, AddToPackage, 
+                      BEConfigFilename, e)
+                logger.error(msg)
+                raise UnableToAddPackageFiles(msg)
+        return True
+
+    def _add_dir_to_ignore_items(self, dirname):
+        if not isdir(dirname):
+            return False
+        self._dirs_ignored.append(dirname)
+        for path, dirs, files in walk(dirname):
+            for f in files:
+                _f = normpath(join(path, f))
+                logger.debug('Ignore [D] File: %s' % f)
+                self._files_ignored.append(_f)
+            for d in dirs:
+                _d = normpath(join(path, d))
+                logger.debug('Ignore [D] Directory: %s' % d)
+                self._dirs_ignored.append(_d)
+        return True
+
+    def _update_ignore_items(self, CurrentPath, LocalBEConfig, 
+                             LocalDirs, LocalFiles):
+        for item in LocalBEConfig[IgnoreItems]:
+            try:
+                regex = re.compile(item)
+                IgnoreFiles = [x for x in LocalFiles if regex.search(x)]
+                for f in IgnoreFiles:
+                    logger.debug('Ignoring File: %s' % f)
+                    LocalFiles.remove(f)
+                    #
+                    # Update the self._files_ignored for statistics
+                    _f = normpath(join(CurrentPath, f))
+                    self._files_ignored.append(_f)
+                IgnoreDirs = [x for x in LocalDirs if regex.search(x)]
+                for d in IgnoreDirs:
+                    logger.debug('Ignoring Directroy: %s' % d)
+                    # Update the self._dirs_ignored for statistics
+                    _d = normpath(join(CurrentPath, d))
+                    self._add_dir_to_ignore_items(_d)
+            except Exception, e:
+                msg = '%s does not exist; Please fix \"%s\" ' \
+                      'in %s; Reason [%s]' % (f, IgnoreItems, 
+                      BEConfigFilename, e)
+                logger.error(msg)
+                raise UnableToIgnoreItem(msg)
         #
         # Ignore all files that are not Python files (.py)
         NonPythonFiles = [f for f in LocalFiles if not f.endswith('.py')]
         for f in NonPythonFiles: 
-            msg = 'Ignoring Non Python File [%s]' % f
+            msg = 'Ignoring Non Python File: [%s]' % f
             logger.debug(msg)
             LocalFiles.remove(f)
             # Update the self._files_ignored for statistics
@@ -345,7 +413,10 @@ class BuildEngine:
     def _compile_all(self, CurrentPath, CompileFiles):
         for f in CompileFiles:
             _f = normpath(join(CurrentPath, f))
-            logger.debug('compiling %s' % _f)
+            if not self._Verbose:
+                print 'compiling %s' % _f
+            else:
+                logger.debug('compiling %s' % _f)
             try:
                 compileall.compile_file(_f, force=True, quiet=True)
             except Exception, e:
@@ -358,16 +429,6 @@ class BuildEngine:
             self._files_compiled.append(_f)
         return True
 
-    def _update_dirs_ignored(self, CurrentPath, LocalBEConfig):
-        if IgnoreDirNames in LocalBEConfig and \
-           LocalBEConfig[IgnoreDirNames]:
-            for d in LocalBEConfig[IgnoreDirNames]:
-                _abspath = normpath(join(CurrentPath, d))
-                self._dirs_ignored.append(_abspath)
-                msg = '%s is being ignored..' % _abspath
-                logger.debug(msg)
-        return None
-
     def _traverse_and_compile(self, RootDir):
         if not isdir(RootDir):
             msg = '%s is not a valid directory; Please ' \
@@ -377,10 +438,13 @@ class BuildEngine:
         # Traverse!
         for CurrentPath, LocalDirs, LocalFiles in walk(RootDir):
             if CurrentPath in self._dirs_ignored:
-                msg = 'As per the user config, %s is ' \
-                      'being ignored!' % (CurrentPath)
-                logger.info(msg)
+                logger.info('Ignoring Directroy: %s' % CurrentPath)
+                logger.debug(DrawLine())
                 continue
+            #
+            # Update the self._dirs_compiled
+            # with the CurrentPath
+            self._dirs_compiled.append(CurrentPath)
             #
             logger.debug("CurrentPath  : %s" % CurrentPath)
             logger.debug("LocalDirs    : %s" % LocalDirs)
@@ -398,22 +462,23 @@ class BuildEngine:
             self._build_dependency(CurrentPath, LocalBEConfig)
             #
             # Update self._add_to_package and add all the 
-            # files that should be added to the package
-            self._add_to_package(CurrentPath, LocalBEConfig)
+            # files and directories that should be added 
+            # to the package
+            self._add_to_package(CurrentPath, 
+                                 LocalBEConfig, 
+                                 LocalDirs, 
+                                 LocalFiles)
             #
             # Update the locally ignored files to 
             # the self._files_ignored for statistics
-            CompileFiles = self._update_files_ignored(CurrentPath,
-                                                      LocalBEConfig,
-                                                      LocalFiles)
+            CompileFiles = self._update_ignore_items(CurrentPath,
+                                                     LocalBEConfig,
+                                                     LocalDirs, 
+                                                     LocalFiles)
             #
             # Compile rest of the files in the current path!
             if not self._compile_all(CurrentPath, CompileFiles):
                 return False
-            #
-            # Add the local dir names that has
-            # to be ignored to the global list
-            self._update_dirs_ignored(CurrentPath, LocalBEConfig)
             logger.debug(DrawLine())
             #
         return True
@@ -437,10 +502,10 @@ class BuildEngine:
         _s += 'Total Number of Files Compiled = %d\n' % len(self._files_compiled)
         _s += 'Total Number of Files Ignored  = %d\n' % len(self._files_ignored)
         _s += 'Total Number of Dirs Compiled  = %d\n' % len(self._dirs_compiled)
-        _s += 'Total Number of Dirs  Ignored  = %d\n' % len(self._dirs_ignored)
+        _s += 'Total Number of Dirs Ignored   = %d\n' % len(self._dirs_ignored)
         _s += '\nTotal Compilation Time = %s Seconds \n' % (Stop-Start)
         self._summary = _s
-        logger.info(self._summary)
+        #logger.info(self._summary)
 
         _s  = 'Compiled Files:\n%s\n' % self._files_compiled
         _s += 'Ignored Files:\n%s\n' % self._files_ignored
@@ -470,15 +535,7 @@ class BuildEngine:
 
     def _tgz(self):
         rootdir = getcwd()
-        # This list contains all the files that should be tar'ed
-        _tgz_files = []
-        for CurrentPath, LocalDirs, LocalFiles in walk(rootdir):
-            for name in LocalFiles:
-                f = normpath(join(CurrentPath, name))
-                if f.endswith('.pyc'):
-                    _tgz_files.append(f)
-                if f in self._add_to_pkg:
-                    _tgz_files.append(f)
+        _tgz_files = self._get_package_files(rootdir)
         # Generate tzg!
         try:
             with tarfile.open(self._tgz_filename, "w:gz") as tar:
@@ -490,13 +547,28 @@ class BuildEngine:
                   'Reason [%s]' % (f, e)
             raise GenerateTgzFailed(msg)
         # Generate MD5Sum for the tarfile
+        self._summary += '\nTgz : %s\n' % (self._tgz_filename)
         self._generate_md5sum(self._tgz_filename)
         return None
 
-
     # # # # # # # # # # # # # #    R P M    # # # # # # # # # # # # # # #
+
     def _rpm(self):
+#        # Step-1 : Create the RPM build environment
+#        # mkdir -p rpmbuild/{RPMS,SRPMS,BUILD,SOURCES,SPECS,tmp}
+#        logger.debug('Clearing existing rpmbuild setup!')
+#        o = check_output(['rm', '-rf', BERPMBuildDir])
+#        logger.debug(o)
+#
+#        logger.debug('Creating rpmbuild build environment [%s]' % dirname)
+#        dirname = '%s/%s' % (BERPMBuildDir, '{RPMS,SRPMS,BUILD,SOURCES,SPECS,tmp}')
+#        o = check_output(['mkdir', '-p', dirname])
+#        logger.debug(o)
+#
+#        
+#        # Step-2 : Create the tgz file
         pass
+
 
     # # # # # # # # # # # # #   E - M A I L   # # # # # # # # # # # # # #
     
@@ -516,6 +588,7 @@ class BuildEngine:
             msg = 'Unable to Generate md5sum for %s; ' \
                   'Reason [%s]' % (fname, e)
             raise GenerateMD5SumFailed(msg)
+        self._summary += '    : %s\n' % (md5file)
         return True
 
 
@@ -531,7 +604,18 @@ class BuildEngine:
                 package_op()
 
     def summary(self):
+        # NOTE: When existing verbose is False and 
+        #       new verbose is True [corner-case]
+        if self._target == Tconfigure and \
+           self._config_verbose == True:
+            print self._summary
+            logger.debug(self._summary)
+            return None
+
         if not self._Verbose:
             print self._summary
+        else:
+            logger.debug(self._summary)
 
 
+# __END__
