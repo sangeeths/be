@@ -6,6 +6,6 @@
         "rpm"
     ], 
     "Tag": "", 
-    "Verbose": false, 
+    "Verbose": true, 
     "Virtualenv": ""
 }

@@ -23,6 +23,7 @@ BEProjectConfigureFilename     = 'configure.be'
 # Keys used in the config.be
 IgnoreDirNames  = 'IgnoreDirNames'
 IgnoreFileNames = 'IgnoreFileNames'
+Dependency      = 'Dependency'
 #
 #
 # The following are the parameters that would be

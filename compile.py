@@ -99,6 +99,22 @@ def GetIgnoreDirNames(CurrentPath, LocalBEConfig):
     return LocalDirNames
 
 
+def BuildDependency(CurrentPath, LocalBEConfig):
+    from subprocess import check_output
+    from be.constants import Dependency
+    if Dependency in LocalBEConfig and \
+       LocalBEConfig[Dependency]:
+        for dependency in LocalBEConfig[Dependency]:
+            try:
+                logger.info('Running target %s' % dependency)
+                logger.info(check_output(['make', '-C', CurrentPath, dependency]))
+            except Exception, e:
+                msg = 'Compilation Failed for Target %s; ' \
+                      'Reason [%s]' % (dependency, e)
+                logger.error(msg)
+    return True
+
+
 
 def TraverseAndCompile(RootDir):
     from be.constants import DefaultLocalBEConfig
@@ -132,6 +148,9 @@ def TraverseAndCompile(RootDir):
         # If config file is present, then load it!
         if BEConfigFilename in LocalFiles:
             LocalBEConfig = LoadLocalBEConfig(CurrentPath)
+
+        # Firstly, build the dependency, if there is any!
+        BuildDependency(CurrentPath, LocalBEConfig)
 
         # TODO TODO TODO
         # Do 'make' here for the .c files
