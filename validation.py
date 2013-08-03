@@ -1,6 +1,5 @@
 from be.constants import BEPackageType
 
-from be.default import BEProjectRootDirectory
 
 from be.exception import InvalidRootDirectory
 from be.exception import InvalidEmailID 
@@ -15,7 +14,7 @@ import os
 logger = GetLogger(__name__)
 
 
-def ValidCompileDirectory(child):
+def valid_CompileDirectory(child):
     from be.exception import InvalidCompileDirectory
     from os import getcwd
     from os.path import realpath, isdir, commonprefix
@@ -37,18 +36,18 @@ def ValidCompileDirectory(child):
     return True
 
 
-def GetAbsPath(dirs):
-    from os.path import realpath
-    AbsPath = []
-    for path in dirs:
-        ValidCompileDirectory(path)
-        AbsPath.append(realpath(path))
-    return AbsPath
+#def GetAbsPath(dirs):
+#    from os.path import realpath
+#    AbsPath = []
+#    for path in dirs:
+#        ValidCompileDirectory(path)
+#        AbsPath.append(realpath(path))
+#    return AbsPath
            
 
     
 
-def ValidEmail(email):
+def valid_Email(email):
     ValidEmailIds = [
         'all@riptideio.com',
         'andy@riptideio.com',
@@ -64,37 +63,34 @@ def ValidEmail(email):
               'are one or more of %s' % (email, ValidEmailIds)
         logger.error(msg)
         raise InvalidEmailID(msg)
-    return True
+    return email
 
 
-def GetEmails(emails):
-    Emails = []
-    for e in emails:
-        if ValidEmail(e): Emails.append(e)
-    return Emails
+#def GetEmails(emails):
+#    Emails = []
+#    for e in emails:
+#        if ValidEmail(e): Emails.append(e)
+#    return Emails
 
 
-def PackageEnum(s):
+def valid_Package(p):
     from be.constants import BEPackageType
-    from be.util import StringToEnum
-    try:
-        return StringToEnum(BEPackageType, s)
-    except Exception, e:
+    if p not in BEPackageType:
         msg = 'Invalid package type [%s]; The valid ' \
-              'options are one or more of [%s]' % \
-              (s, ', '.join(BEPackageType._keys))
+              'options are one or more of %s' % \
+              (p, BEPackageType)
         raise InvalidPackage(msg)
-    return True
+    return p
 
 
-def GetPackages(packages):
-    Packages = []
-    for p in packages:
-        Packages.append(PackageEnum(p))
-    return Packages
+#def GetPackages(packages):
+#    Packages = []
+#    for p in packages:
+#        Packages.append(PackageEnum(p))
+#    return Packages
+#
 
-
-def ValidTag(tag):
+def valid_Tag(tag):
     from string import ascii_lowercase as lower
     from string import ascii_uppercase as upper
     from string import digits as digits
@@ -119,7 +115,7 @@ def ValidTag(tag):
     # _min_len <= len(tag) <= _max_len
     strlen = len(tag)
     if strlen >= _min_len and strlen <= _max_len:
-        return True
+        return tag
 
     msg = 'Invalid String Length (%s) [%d]; min_len [%d]; ' \
           'max_len [%d]' % (tag, strlen, _min_len, _max_len)
@@ -127,7 +123,7 @@ def ValidTag(tag):
     raise InvalidTag(msg)
 
 
-def ValidVirtualEnvReqFile(ReqFile):
+def valid_VirtualEnvReqFile(ReqFile):
     from os.path import realpath, isfile
     ReqFile = realpath(ReqFile)
     if not isfile(ReqFile):
@@ -137,4 +133,16 @@ def ValidVirtualEnvReqFile(ReqFile):
         raise InvalidVirtualEnvReqFile(msg)
     return True
 
+
+def valid_BEConfig(config):
+    from be.constants import ConfigMandatoryParams
+    from be.constants import BEProjectDefaultConfigFilename
+    from be.exception import InvalidConfiguration
+    for k, v in config.iteritems():
+        if k not in ConfigMandatoryParams:
+            msg = 'Invalid Build Engine Configuration; Key [%s] ' \
+                  'Not Found; Please check [%s] (or) re-run \"be ' \
+                  'configure\"' % (k, BEProjectDefaultConfigFilename)
+            raise InvalidConfiguration(msg)
+    return True
 

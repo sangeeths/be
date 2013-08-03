@@ -36,11 +36,29 @@ class ValueNotFound(BEException):
     def __init__(self, value='Value Not Found'):
         self.value = value
 
-class ConfigureFailed(BEException):
+
+
+
+
+# -----------------------------------------------
+
+class ConfigureParametersNotFound(BEException):
+    def __init__(self, value='Configure Parameters Not Found'):
+        self.value = value
+
+class InvalidConfiguration(BEException):
+    def __init__(self, value='Invalid Configuration'):
+        self.value = value
+
+class TargetCleanFailed(BEException):
+    def __init__(self, value='Clean Failed'):
+        self.value = value
+
+class TargetConfigureFailed(BEException):
     def __init__(self, value='Configuration Failed'):
         self.value = value
 
-class CleanFailed(BEException):
-    def __init__(self, value='Clean Failed'):
-        self.value = value
+
+
+
 

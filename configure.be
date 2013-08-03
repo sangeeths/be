@@ -1,7 +1,5 @@
 {
-    "Directories": [
-        "/home/sangeeth/trials/be/dir1/dir2"
-    ], 
+    "Directories": [], 
     "Email": [], 
     "Package": [
         "tgz", 

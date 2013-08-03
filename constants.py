@@ -1,5 +1,3 @@
-from enum import Enum
-
 
 # # # # # # # # # # # # # # # # # # # # # # # # #
 #
@@ -10,7 +8,17 @@ from enum import Enum
 #
 #
 # The types of packages that are currently supported.
-BEPackageType = Enum('tgz', 'rpm')
+BEPackageType = ['tgz', 'rpm']
+#
+#
+# The following are build targets
+Tclean     = 'clean'
+Tcleanall  = 'cleanall'
+Tconfigure = 'configure'
+Tdev       = 'dev'
+Ttest      = 'test'
+Trelease   = 'release'
+Tprelease  = 'prelease'
 #
 #
 # The log file name for each and every directory 
@@ -38,7 +46,21 @@ Package      = 'Package'
 Tag          = 'Tag'
 Verbose      = 'Verbose'
 Virtualenv   = 'Virtualenv'
-
+#
+#
+# The following are the mandatory parameters
+# in any build engine config file 
+#   -> default.config.be
+#   -> configure.be
+ConfigMandatoryParams = [
+     Directories, 
+     Email, 
+     Package, 
+     Tag, 
+     Verbose, 
+     Virtualenv,
+]
+#
 #
 # When there is no 'BEConfigFilename' in a pwd,
 # the following will be considered as a default
