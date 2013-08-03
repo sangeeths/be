@@ -1,8 +1,11 @@
 {
     "Directories": [], 
     "Email": [], 
-    "Package": [], 
+    "Package": [
+        "tgz", 
+        "rpm"
+    ], 
     "Tag": "", 
-    "Verbose": true, 
+    "Verbose": false, 
     "Virtualenv": ""
 }

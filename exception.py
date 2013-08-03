@@ -58,7 +58,13 @@ class TargetConfigureFailed(BEException):
     def __init__(self, value='Configuration Failed'):
         self.value = value
 
+class GenerateTgzFailed(BEException):
+    def __init__(self, value='Generating Tzg Failed'):
+        self.value = value
 
+class GenerateMD5SumFailed(BEException):
+    def __init__(self, value='Generating md5sum Failed'):
+        self.value = value
 
 
 

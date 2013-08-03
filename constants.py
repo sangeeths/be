@@ -6,9 +6,11 @@
 # Read-Only
 # Do-Not-Disturb
 #
+Tgz = 'tgz'
+Rpm = 'rpm'
 #
 # The types of packages that are currently supported.
-BEPackageType = ['tgz', 'rpm']
+BEPackageType = [Tgz, Rpm]
 #
 #
 # The following are build targets

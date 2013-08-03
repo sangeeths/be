@@ -1,4 +1,7 @@
 import logging
+from os.path import normpath
+from os.path import join
+
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
@@ -11,8 +14,10 @@ import logging
 # the "be" is deployed.
 #
 #
+BEOutputDirectory = '/tmp/be'
+#
 # The "be" logs would be written to the following file. 
-BELogFileName = '/tmp/output.be'
+BELogFileName = normpath(join(BEOutputDirectory, 'be.log'))
 #
 #
 # The current log level
@@ -51,6 +56,13 @@ BEVirtualEnv = {'dev'      : False,
 # project root directory.
 BERequirements = 'REQUIREMENTS'
 #
+#
+# Base File Name
+BEBaseFileName = 'BrightEdge'
+#
+#
+# Target Root
+BETargetRoot = '/usr/lib/be/'
 #
 # End - User Configurable Parameters
 # 

@@ -1,8 +1,11 @@
 
 from be.constants import *
+from be.config import *
 
 from be.exception import TargetCleanFailed
 from be.exception import TargetConfigureFailed
+from be.exception import GenerateTgzFailed
+from be.exception import GenerateMD5SumFailed
 
 from be.util import GetLogger
 from be.util import GetLogger
@@ -23,16 +26,22 @@ from os.path import normpath
 from os.path import isfile
 from os.path import isdir
 from os.path import realpath
+from os.path import basename
 
 import fnmatch
 import time
 import json
 import compileall
+import tarfile
+import hashlib
 
 from subprocess import check_output
 
+from datetime import datetime
 
 logger = GetLogger(__name__)
+
+
 
 
 class BuildEngine:
@@ -42,7 +51,7 @@ class BuildEngine:
             self._update_cparams(args)
         self._update_config(config)
         self._update_logger()
-        self._op = {       
+        self._target_op = {       
             Tclean     : self._clean,
             Tcleanall  : self._cleanall,
             Tconfigure : self._configure,
@@ -51,7 +60,12 @@ class BuildEngine:
             Trelease   : self._release,
             Tprelease  : self._prelease,
         }
+        self._package_op = {
+            Tgz : self._tgz,
+            Rpm : self._rpm,
+        }
         self._summary = ''
+        self._update_filenames()
         self._dirs_ignored   = []
         self._dirs_compiled  = []
         self._files_ignored  = []
@@ -80,6 +94,10 @@ class BuildEngine:
         self._config_tag        = args.tag if args.tag is not None else ''
         self._config_verbose    = args.verbose
         self._config_virtualenv = args.virtualenv if args.virtualenv is not None else ''
+        # The following will remove duplicates
+        self._config_dirs    = list(set(self._config_dirs))
+        self._config_email   = list(set(self._config_email))
+        self._config_package = list(set(self._config_package))
         return None
 
     def _update_logger(self):
@@ -88,6 +106,41 @@ class BuildEngine:
             logger = GetLogger(__name__, verbose=True)
             logger.debug('Verbose settings updated!')
         return None
+
+    def _update_filenames(self):
+        # The .tgz and .rpm file names are required only
+        # for the build targets like dev, test, release 
+        # and prelease; This function is applicable for
+        # only the build targets!
+        if not self._build_target():
+            return None
+
+        # Add basename and target
+        f = '%s-%s' % (BEBaseFileName, self._target)
+        # Add tag
+        if self._Tag: 
+            f += '-%s' % self._Tag
+        # TODO TODO
+        # Add version information here!
+        # Add timestamp
+        if self._target == Tdev or self._target == Ttest:
+            ts = datetime.now().strftime('%Y-%m-%d-%H%M%S')
+        else:
+            ts = datetime.now().strftime('%Y-%m-%d')
+        f += '-%s' % ts 
+        fname = normpath(join(BEOutputDirectory, f))
+        self._tgz_filename = '%s.%s' % (fname, Tgz)
+        self._rpm_filename = '%s.%s' % (fname, Rpm)
+        return None
+
+    def _build_target(self):
+        if self._target == Tdev or \
+           self._target == Ttest or \
+           self._target == Trelease or \
+           self._target == Tprelease:
+            return True
+        return False
+    
 
     # # # # # # # # # # # # # #    C L E A N    # # # # # # # # # # # # # # 
 
@@ -389,18 +442,12 @@ class BuildEngine:
         self._summary = _s
         logger.info(self._summary)
 
-        logger.debug('Compiled Files:')
-        logger.debug(self._files_compiled)
-        logger.debug('Ignored Files:')
-        logger.debug(self._files_ignored)
-        logger.debug('Compiled Directories:')
-        logger.debug(self._dirs_compiled)
-        logger.debug('Ignored Directories:')
-        logger.debug(self._dirs_ignored)
-        logger.debug('Files Added to Package:')
-        logger.debug(self._add_to_pkg)
-        
-
+        _s  = 'Compiled Files:\n%s\n' % self._files_compiled
+        _s += 'Ignored Files:\n%s\n' % self._files_ignored
+        _s += 'Compiled Directories:\n%s\n' % self._dirs_compiled
+        _s += 'Ignored Directories:\n%s\n' % self._dirs_ignored
+        _s += 'Add to Package:\n%s\n' % self._add_to_pkg
+        logger.debug(_s)
         return None
 
     # # # # # # # # # # # # # #    T E S T   # # # # # # # # # # # # # # #
@@ -409,7 +456,6 @@ class BuildEngine:
         pass
 
     # # # # # # # # # # # #    R E A L E S E    # # # # # # # # # # # # # 
-
 
     def _release(self):
         pass
@@ -421,14 +467,68 @@ class BuildEngine:
 
     
     # # # # # # # # # # # # # #    T G Z    # # # # # # # # # # # # # # #
+
+    def _tgz(self):
+        rootdir = getcwd()
+        # This list contains all the files that should be tar'ed
+        _tgz_files = []
+        for CurrentPath, LocalDirs, LocalFiles in walk(rootdir):
+            for name in LocalFiles:
+                f = normpath(join(CurrentPath, name))
+                if f.endswith('.pyc'):
+                    _tgz_files.append(f)
+                if f in self._add_to_pkg:
+                    _tgz_files.append(f)
+        # Generate tzg!
+        try:
+            with tarfile.open(self._tgz_filename, "w:gz") as tar:
+                for f in _tgz_files:
+                    tardir = normpath(f.replace(rootdir, BETargetRoot))
+                    tar.add(f, recursive=False, arcname=tardir)
+        except Exception, e:
+            msg = 'Unable to generate tgz file [%s]; ' \
+                  'Reason [%s]' % (f, e)
+            raise GenerateTgzFailed(msg)
+        # Generate MD5Sum for the tarfile
+        self._generate_md5sum(self._tgz_filename)
+        return None
+
+
     # # # # # # # # # # # # # #    R P M    # # # # # # # # # # # # # # #
+    def _rpm(self):
+        pass
+
     # # # # # # # # # # # # #   E - M A I L   # # # # # # # # # # # # # #
+    
+    def _send_email(self):
+        pass
+
     # # # # # # # # # # # # #   M D 5 S U M   # # # # # # # # # # # # # #
+
+    def _generate_md5sum(self, fname):
+        try:
+            md5sum = hashlib.md5(open(fname, 'rb').read()).hexdigest()
+            content = '%s %s\n' % (md5sum, basename(fname))
+            md5file = '%s.md5' % (fname)
+            with open(md5file, 'w') as f:
+                f.write(content)
+        except Exception, e:
+            msg = 'Unable to Generate md5sum for %s; ' \
+                  'Reason [%s]' % (fname, e)
+            raise GenerateMD5SumFailed(msg)
+        return True
 
 
     def run(self):
-        op = self._op[self._target]
-        op()
+        target_op = self._target_op[self._target]
+        target_op()
+
+        # If the target is dev, test, release, prelease
+        # then generate the packages (tgz and/or rpm)
+        if self._build_target():
+            for p in self._Package:
+                package_op = self._package_op[p]
+                package_op()
 
     def summary(self):
         if not self._Verbose:
