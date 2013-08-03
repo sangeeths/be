@@ -32,6 +32,7 @@ BEProjectConfigureFilename     = 'configure.be'
 IgnoreDirNames  = 'IgnoreDirNames'
 IgnoreFileNames = 'IgnoreFileNames'
 Dependency      = 'Dependency'
+AddToPackage    = 'AddToPackage'
 #
 #
 # The following are the parameters that would be

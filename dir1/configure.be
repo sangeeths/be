@@ -3,6 +3,6 @@
     "Email": [], 
     "Package": [], 
     "Tag": "", 
-    "Verbose": false, 
+    "Verbose": true, 
     "Virtualenv": ""
 }

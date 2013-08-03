@@ -56,6 +56,7 @@ class BuildEngine:
         self._dirs_compiled  = []
         self._files_ignored  = []
         self._files_compiled = []
+        self._add_to_pkg     = []
 
     def _update_config(self, config):
         valid_BEConfig(config)
@@ -245,6 +246,16 @@ class BuildEngine:
                     print msg
                     logger.error(msg)
         return True
+    
+    def _add_to_package(self, CurrentPath, LocalBEConfig):
+        if LocalBEConfig == DefaultLocalBEConfig:
+            return None
+        if AddToPackage in LocalBEConfig and \
+           LocalBEConfig[AddToPackage]:
+            for f in LocalBEConfig[AddToPackage]:
+                _f = normpath(join(CurrentPath, f))
+                self._add_to_pkg.append(_f)
+        return True
 
     def _update_files_ignored(self, CurrentPath, LocalBEConfig, LocalFiles):
         if LocalBEConfig != DefaultLocalBEConfig:
@@ -333,6 +344,10 @@ class BuildEngine:
             # Firstly, build the dependency, if there is any!
             self._build_dependency(CurrentPath, LocalBEConfig)
             #
+            # Update self._add_to_package and add all the 
+            # files that should be added to the package
+            self._add_to_package(CurrentPath, LocalBEConfig)
+            #
             # Update the locally ignored files to 
             # the self._files_ignored for statistics
             CompileFiles = self._update_files_ignored(CurrentPath,
@@ -371,9 +386,21 @@ class BuildEngine:
         _s += 'Total Number of Dirs Compiled  = %d\n' % len(self._dirs_compiled)
         _s += 'Total Number of Dirs  Ignored  = %d\n' % len(self._dirs_ignored)
         _s += '\nTotal Compilation Time = %s Seconds \n' % (Stop-Start)
-
         self._summary = _s
         logger.info(self._summary)
+
+        logger.debug('Compiled Files:')
+        logger.debug(self._files_compiled)
+        logger.debug('Ignored Files:')
+        logger.debug(self._files_ignored)
+        logger.debug('Compiled Directories:')
+        logger.debug(self._dirs_compiled)
+        logger.debug('Ignored Directories:')
+        logger.debug(self._dirs_ignored)
+        logger.debug('Files Added to Package:')
+        logger.debug(self._add_to_pkg)
+        
+
         return None
 
     # # # # # # # # # # # # # #    T E S T   # # # # # # # # # # # # # # #
